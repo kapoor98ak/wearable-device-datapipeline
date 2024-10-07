@@ -1,182 +1,131 @@
-# Azure DevOps Build and Release Pipeline
 
-## Overview
+# Azure DevOps Build and Release Pipeline Project
 
-This project demonstrates how to create a CI/CD pipeline using Azure DevOps to automate the build and release process for a Databricks project. The pipeline includes a build pipeline that packages code artifacts and a release pipeline that deploys the artifacts to a Databricks workspace and runs integration tests.
+## Project Overview
+
+This project aims to automate the build and release processes for a data engineering application using Azure DevOps. It consists of creating a build pipeline that compiles code, runs tests, and produces artifacts, as well as a release pipeline that deploys the artifacts to a target environment (Databricks).
 
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
 - [Project Structure](#project-structure)
-- [Creating the Build Pipeline](#creating-the-build-pipeline)
-  - [Creating a YAML File](#creating-a-yaml-file)
-  - [Committing the YAML File](#committing-the-yaml-file)
-  - [Setting Up the Build Pipeline](#setting-up-the-build-pipeline)
-- [Creating the Release Pipeline](#creating-the-release-pipeline)
-  - [Defining Artifacts and Stages](#defining-artifacts-and-stages)
-  - [Configuring Tasks](#configuring-tasks)
+- [Build Pipeline](#build-pipeline)
+    - [Creating the YAML File](#creating-the-yaml-file)
+    - [Defining the Pipeline Steps](#defining-the-pipeline-steps)
+- [Release Pipeline](#release-pipeline)
+    - [Creating the Release Pipeline](#creating-the-release-pipeline)
+    - [Configuring Variables](#configuring-variables)
 - [Integration Testing](#integration-testing)
-- [Environment Variables](#environment-variables)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
+- [Bash Script for Integration Testing](#bash-script-for-integration-testing)
+- [Conclusion](#conclusion)
 
 ## Prerequisites
 
-- An Azure DevOps account
-- A project set up in Azure DevOps
-- Access to a Databricks workspace
-- Basic understanding of YAML and Azure DevOps pipelines
+Before you begin, ensure you have the following:
+
+- An Azure DevOps account and access to create pipelines.
+- A Databricks workspace for deploying the application.
+- Necessary permissions to create branches, pull requests, and manage pipelines.
 
 ## Project Structure
 
-```
-.
-├── .gitignore
-├── build-pipeline.yaml        # YAML file for the build pipeline
-├── release-pipeline.yaml      # YAML file for the release pipeline
-└── integration-test.sh        # Bash script for integration testing
-```
+The project contains the following components:
 
-## Creating the Build Pipeline
+- **YAML Files**: Configuration files for the build pipeline.
+- **Bash Scripts**: Scripts for executing tasks in the release pipeline.
+- **Notebooks**: Jupyter notebooks containing the data engineering logic.
 
-### Creating a YAML File
+## Build Pipeline
+
+### Creating the YAML File
 
 1. Log in to your Azure DevOps portal.
-2. Navigate to your project (e.g., SBIT).
-3. Go to **Repos**.
-4. Create a new branch (e.g., `feature-build`).
-5. Create a new YAML file (e.g., `build-pipeline.yaml`) and paste the following content:
+2. Go to your project and navigate to **Repos**.
+3. Create a new branch from the **release branch**.
+4. Create a new file and name it `azure-pipelines.yml`.
+5. Paste the YAML content that defines your build pipeline.
 
-```yaml
-# Example YAML for a simple build pipeline
-trigger:
-  batch: true
-  branches:
-    include:
-      - '*'
+### Defining the Pipeline Steps
 
-pool:
-  vmImage: 'ubuntu-22.04'
+The YAML file contains the following key components:
 
-steps:
-- task: UsePythonVersion@0
-  inputs:
-    versionSpec: '3.10'
-  
-- script: |
-    pip install pytest requests setuptools wheel
-  displayName: 'Install Python Packages'
+- **Trigger**: Configured to run on all branches and only trigger one build when multiple commits occur simultaneously.
+- **Agent**: Specifies `ubuntu-22.04` as the virtual machine to be used.
+- **Steps**: Includes tasks such as installing Python, installing required tools, checking out the latest code, and archiving files into a zip for artifacts.
 
-- script: |
-    cp -R $(Build.SourcesDirectory) $(Build.ArtifactStagingDirectory)/binaries
-  displayName: 'Copy Latest Code'
+## Release Pipeline
 
-- task: ArchiveFiles@2
-  inputs:
-    rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/binaries'
-    includeRootFolder: false
-    archiveFile: '$(Build.ArtifactStagingDirectory)/output.zip'
-```
+### Creating the Release Pipeline
 
-### Committing the YAML File
+1. Navigate to **Pipelines** > **Releases** in Azure DevOps.
+2. Click on **New Release Pipeline** and select the **Empty Job** template.
+3. Define the artifacts by selecting the build pipeline created earlier as the source.
 
-1. Save and commit the YAML file to the `feature-build` branch.
-2. Create a pull request to merge into the `release` branch.
+### Configuring Variables
 
-### Setting Up the Build Pipeline
-
-1. Go to **Pipelines** in Azure DevOps.
-2. Click on **New Pipeline** and select **Azure Repos**.
-3. Choose the existing YAML file option and select your `release` branch and `build-pipeline.yaml`.
-4. Save the pipeline.
-
-## Creating the Release Pipeline
-
-### Defining Artifacts and Stages
-
-1. Go to **Pipelines** > **Releases** in Azure DevOps.
-2. Click **New Release Pipeline** and select an **Empty Job**.
-3. In the **Artifacts** section, add the build pipeline as the source.
-
-### Configuring Tasks
-
-1. Define an agent job with `ubuntu-22.04`.
-2. Add the following tasks:
-   - Use Python Version
-   - Extract Files
-   - Install Databricks CLI (using a Bash task)
-   - Deploy code to Databricks (using another Bash task)
-   - Run Integration Tests (using a final Bash task)
+1. Go to the **Variables** tab in your release pipeline.
+2. Add environment variables:
+   - `DATABRICKS_HOST`: The URL of your Databricks workspace.
+   - `DATABRICKS_TOKEN`: The access token for authentication.
 
 ## Integration Testing
 
-The integration testing script is defined in `integration-test.sh`. It performs the following steps:
+The release pipeline includes an integration testing step that triggers a Databricks job to run a specific notebook. The results of the job are published back to Azure DevOps.
+
+## Bash Script for Integration Testing
+
+The integration testing step utilizes a Bash script to:
 
 1. Create a job to run the `08-batch-test` notebook.
-2. Trigger the job and get the run ID.
+2. Trigger the job and retrieve the run ID.
 3. Wait for the job to complete.
 4. Delete the job after completion.
 5. Publish the job result.
 
-### Sample Bash Script
+### Bash Script Content
 
 ```bash
 #!/bin/bash
 
-# Create a job to run the integration test
-job_id=$(databricks jobs create --json '{
-  "name": "Integration Test Job",
-  "new_cluster": {
-    "num_workers": 1,
-    "spark_version": "8.3.x-scala2.12",
-    "node_type_id": "i3.xlarge"
-  },
+# Create a job to run the batch-test notebook
+JOB_ID=$(databricks jobs create --json '{
+  "name": "Batch Test Job",
   "notebook_task": {
-    "notebook_path": "/Deployment/08-batch-test"
+    "notebook_path": "/deployment/08-batch-test"
+  },
+  "new_cluster": {
+    "spark_version": "7.3.x-scala2.12",
+    "node_type_id": "Standard_DS3_v2",
+    "num_workers": 1
   }
 }' | jq -r '.job_id')
 
-# Run the job
-run_id=$(databricks jobs run-now --job-id "$job_id" | jq -r '.run_id')
+# Trigger the job
+RUN_ID=$(databricks jobs run-now --job-id $JOB_ID | jq -r '.run_id')
 
-# Poll for job completion
+# Wait for the job to complete
 while true; do
-  status=$(databricks runs get --run-id "$run_id" | jq -r '.state.life_cycle_state')
-  if [[ "$status" == "TERMINATED" ]]; then
+  STATUS=$(databricks runs get --run-id $RUN_ID | jq -r '.state.life_cycle_state')
+  if [[ "$STATUS" == "TERMINATED" ]]; then
     break
   fi
-  sleep 10
+  sleep 5
 done
 
-# Cleanup
-databricks jobs delete --job-id "$job_id"
+# Delete the job
+databricks jobs delete --job-id $JOB_ID
 
-# Publish results
-echo "Integration test completed."
+# Publish the job result
+if [[ "$STATUS" == "SUCCESS" ]]; then
+  echo "Integration test passed."
+else
+  echo "Integration test failed."
+  exit 1
+fi
 ```
 
-## Environment Variables
+## Conclusion
 
-Make sure to define the following environment variables in the release pipeline:
+In this project, we successfully created both build and release pipelines in Azure DevOps, configured environment variables for deployment, and implemented an integration testing step to ensure the reliability of our application. 
 
-- `DATABRICKS_HOST`: The URL of your Databricks workspace.
-- `DATABRICKS_TOKEN`: The access token for authentication.
-
-## Usage
-
-1. Create a pull request to merge your changes into the `release` branch.
-2. After the build pipeline completes, manually trigger the release pipeline from the Azure DevOps portal.
-3. Monitor the pipeline runs for successful deployment and integration test results.
-
-## Contributing
-
-If you'd like to contribute to this project, please fork the repository and submit a pull request. All contributions are welcome!
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
----
-
-Feel free to customize this README according to your project specifics and any additional instructions you'd like to provide!
+Feel free to customize and expand this project according to your specific requirements. Happy coding!
