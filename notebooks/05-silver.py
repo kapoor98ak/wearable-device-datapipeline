@@ -47,12 +47,14 @@ class Silver():
         from pyspark.sql import functions as F
         
         #Idempotent - User cannot register again so ignore the duplicates and insert the new records
+        # Insert only req, no updates.
         query = f"""
             MERGE INTO {self.catalog}.{self.db_name}.users a
             USING users_delta b
             ON a.user_id=b.user_id
             WHEN NOT MATCHED THEN INSERT *
             """
+        # users_delta is the temp view that we receive.
         
         data_upserter=Upserter(query, "users_delta")
         

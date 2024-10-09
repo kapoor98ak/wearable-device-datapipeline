@@ -21,6 +21,7 @@ class SetupHelper():
         print("Done")
         
     def create_registered_users_bz(self):
+        # Registered User Table
         if(self.initialized):
             print(f"Creating registered_users_bz table...", end='')
             spark.sql(f"""CREATE TABLE IF NOT EXISTS {self.catalog}.{self.db_name}.registered_users_bz(
@@ -309,7 +310,7 @@ class SetupHelper():
         
     def cleanup(self): 
         if spark.sql(f"SHOW DATABASES IN {self.catalog}").filter(f"databaseName == '{self.db_name}'").count() == 1:
-            print(f"Dropping the database {self.catalog}.{self.db_name}...", end='')
+            print(f"Droppi ng the database {self.catalog}.{self.db_name}...", end='')
             spark.sql(f"DROP DATABASE {self.catalog}.{self.db_name} CASCADE")
             print("Done")
         print(f"Deleting {self.landing_zone}...", end='')

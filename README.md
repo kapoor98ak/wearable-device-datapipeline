@@ -1,131 +1,92 @@
-
-# Azure DevOps Build and Release Pipeline Project
+# Wearable Device Data Engineering System
 
 ## Project Overview
 
-This project aims to automate the build and release processes for a data engineering application using Azure DevOps. It consists of creating a build pipeline that compiles code, runs tests, and produces artifacts, as well as a release pipeline that deploys the artifacts to a target environment (Databricks).
+This project involves the design and implementation of a scalable **data engineering system** for a wearable device company. The system collects, processes, and analyzes health data from wristwatch-like devices that continuously send data such as heart rate events, user activity, and workout sessions.
 
-## Table of Contents
+The platform leverages the **Lakehouse architecture** to support both batch and real-time data ingestion, providing analytics and reporting on user health metrics and activity.
 
-- [Prerequisites](#prerequisites)
-- [Project Structure](#project-structure)
-- [Build Pipeline](#build-pipeline)
-    - [Creating the YAML File](#creating-the-yaml-file)
-    - [Defining the Pipeline Steps](#defining-the-pipeline-steps)
-- [Release Pipeline](#release-pipeline)
-    - [Creating the Release Pipeline](#creating-the-release-pipeline)
-    - [Configuring Variables](#configuring-variables)
-- [Integration Testing](#integration-testing)
-- [Bash Script for Integration Testing](#bash-script-for-integration-testing)
-- [Conclusion](#conclusion)
+## Architecture
+![Architecture Diagram](https://github.com/user-attachments/assets/67fd819a-87cb-427a-9dab-74fac6814215)
 
-## Prerequisites
 
-Before you begin, ensure you have the following:
 
-- An Azure DevOps account and access to create pipelines.
-- A Databricks workspace for deploying the application.
-- Necessary permissions to create branches, pull requests, and manage pipelines.
+The system follows the **Medallion architecture** consisting of three key layers:
 
-## Project Structure
+1. **Bronze Layer**: Ingests raw data from both batch and streaming sources.
+2. **Silver Layer**: Cleans, processes, and deduplicates data, ensuring data quality.
+3. **Gold Layer**: Aggregates the data into reporting tables for business analytics.
 
-The project contains the following components:
+### Key Data Sources
+- **Device Registration Data**: Stored in the cloud at the time of sale.
+- **User Profile Data (CDC)**: Captured via a mobile app and sent to a Kafka topic.
+- **Heart Rate Events**: High-volume data stream of user heart rates.
+- **Login/Logout Events**: Tracks user entries/exits from fitness centers.
+- **Workout Session Events**: Logs workout session start and stop times.
 
-- **YAML Files**: Configuration files for the build pipeline.
-- **Bash Scripts**: Scripts for executing tasks in the release pipeline.
-- **Notebooks**: Jupyter notebooks containing the data engineering logic.
+## Technologies
 
-## Build Pipeline
+The system is built using the following technologies:
 
-### Creating the YAML File
+- **Databricks**: Used for data processing and orchestration.
+- **Azure ADLS Gen2**: Cloud storage for raw and processed data.
+- **Apache Kafka**: Manages real-time data ingestion.
+- **Delta Lake**: Ensures ACID transactions and data reliability.
+- **Azure Data Factory**: Orchestrates batch data ingestion.
+- **Databricks Unity Catalog**: Implements fine-grained access control and data governance.
 
-1. Log in to your Azure DevOps portal.
-2. Go to your project and navigate to **Repos**.
-3. Create a new branch from the **release branch**.
-4. Create a new file and name it `azure-pipelines.yml`.
-5. Paste the YAML content that defines your build pipeline.
+## Key Features
 
-### Defining the Pipeline Steps
+- **Batch and Streaming Data Processing**: Supports both real-time data ingestion via Kafka and batch processing through cloud databases.
+- **Data Governance**: Role-based access control (RBAC) using **Databricks Unity Catalog** to ensure data security and governance across multiple environments (development, testing, production).
+- **Scalable Architecture**: The **Lakehouse platform** decouples data ingestion from processing, allowing for independent scaling.
+- **Automated CI/CD Pipelines**: Continuous integration and deployment pipelines using **Azure DevOps** to automate testing and deployments.
 
-The YAML file contains the following key components:
+## Data Ingestion and Processing
 
-- **Trigger**: Configured to run on all branches and only trigger one build when multiple commits occur simultaneously.
-- **Agent**: Specifies `ubuntu-22.04` as the virtual machine to be used.
-- **Steps**: Includes tasks such as installing Python, installing required tools, checking out the latest code, and archiving files into a zip for artifacts.
+The data ingestion strategy is divided into:
+- **Batch Data**: Ingested using **Azure Data Factory** from SQL databases.
+- **Streaming Data**: Ingested from **Kafka** topics for real-time data (e.g., heart rate and workout session events).
 
-## Release Pipeline
+Data is first ingested into the **Bronze Layer** as raw data. The **Silver Layer** then cleans and processes this data to remove duplicates, apply CDC, and ensure quality. Finally, the **Gold Layer** aggregates data into reporting tables for analytics and business insights.
 
-### Creating the Release Pipeline
+### Key Reporting Metrics
 
-1. Navigate to **Pipelines** > **Releases** in Azure DevOps.
-2. Click on **New Release Pipeline** and select the **Empty Job** template.
-3. Define the artifacts by selecting the build pipeline created earlier as the source.
+- **Workout BPM Summary**: Summarizes workout sessions by user, calculating minimum, average, and maximum BPM during workouts.
+- **Gym Activity Summary**: Aggregates user activity and time spent in fitness centers.
 
-### Configuring Variables
+## Deployment and Cost Management
 
-1. Go to the **Variables** tab in your release pipeline.
-2. Add environment variables:
-   - `DATABRICKS_HOST`: The URL of your Databricks workspace.
-   - `DATABRICKS_TOKEN`: The access token for authentication.
+We used **Databricks cluster policies** to manage resource usage and optimize costs by controlling the type, size, and number of clusters that can be created. Autoscaling is enabled to ensure efficient resource usage.
 
-## Integration Testing
+### Environments
 
-The release pipeline includes an integration testing step that triggers a Databricks job to run a specific notebook. The results of the job are published back to Azure DevOps.
+- **Development**: For code testing and pipeline execution.
+- **Testing**: To ensure correctness and data quality before production deployment.
+- **Production**: The live environment that processes real-time data and provides analytics.
 
-## Bash Script for Integration Testing
+## CI/CD Pipeline
 
-The integration testing step utilizes a Bash script to:
+The project includes an automated **CI/CD pipeline** using **Azure DevOps**:
+- **Build Pipeline**: Automatically tests the code and generates artifacts.
+- **Release Pipeline**: Deploys code to development, testing, and production environments.
 
-1. Create a job to run the `08-batch-test` notebook.
-2. Trigger the job and retrieve the run ID.
-3. Wait for the job to complete.
-4. Delete the job after completion.
-5. Publish the job result.
+The pipeline supports **continuous integration (CI)** and **continuous deployment (CD)**, ensuring that all code changes are tested and validated before they are released into production.
 
-### Bash Script Content
+## Challenges and Solutions
 
-```bash
-#!/bin/bash
+- **Batch and Streaming Integration**: We decoupled data ingestion and processing pipelines to support both batch and real-time data streams without dependency conflicts.
+- **Data Governance**: Implemented fine-grained access control using **Databricks Unity Catalog** to secure data across multiple environments.
+- **Cluster Management**: Controlled cluster resource usage with **Databricks cluster policies** to optimize costs and prevent resource overuse.
 
-# Create a job to run the batch-test notebook
-JOB_ID=$(databricks jobs create --json '{
-  "name": "Batch Test Job",
-  "notebook_task": {
-    "notebook_path": "/deployment/08-batch-test"
-  },
-  "new_cluster": {
-    "spark_version": "7.3.x-scala2.12",
-    "node_type_id": "Standard_DS3_v2",
-    "num_workers": 1
-  }
-}' | jq -r '.job_id')
+## Future Enhancements
 
-# Trigger the job
-RUN_ID=$(databricks jobs run-now --job-id $JOB_ID | jq -r '.run_id')
-
-# Wait for the job to complete
-while true; do
-  STATUS=$(databricks runs get --run-id $RUN_ID | jq -r '.state.life_cycle_state')
-  if [[ "$STATUS" == "TERMINATED" ]]; then
-    break
-  fi
-  sleep 5
-done
-
-# Delete the job
-databricks jobs delete --job-id $JOB_ID
-
-# Publish the job result
-if [[ "$STATUS" == "SUCCESS" ]]; then
-  echo "Integration test passed."
-else
-  echo "Integration test failed."
-  exit 1
-fi
-```
+- **Machine Learning Integration**: Future iterations could include predictive analytics and machine learning models using the processed data.
+- **Additional Data Sources**: The system could be expanded to ingest data from other IoT devices or third-party APIs.
 
 ## Conclusion
 
-In this project, we successfully created both build and release pipelines in Azure DevOps, configured environment variables for deployment, and implemented an integration testing step to ensure the reliability of our application. 
+This project delivers a scalable, efficient, and secure data engineering solution that processes both real-time and batch data from wearable devices. The use of **Lakehouse architecture** ensures data reliability, governance, and performance, providing valuable insights for both the company and its users.
 
-Feel free to customize and expand this project according to your specific requirements. Happy coding!
+
+

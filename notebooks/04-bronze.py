@@ -13,6 +13,7 @@ class Bronze():
         spark.sql(f"USE {self.catalog}.{self.db_name}")
         
     def consume_user_registration(self, once=True, processing_time="5 seconds"):
+        # Ingest the user registration data
         from pyspark.sql import functions as F
         schema = "user_id long, device_id long, mac_address string, registration_timestamp double"
         
